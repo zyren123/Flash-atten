@@ -36,6 +36,7 @@ class FlashAttention(nn.Module):
         o_blocks=list(output.split(self.br, dim=0))
         l_blocks=list(l.split(self.br, dim=0))
         m_blocks=list(m.split(self.br, dim=0))
+        
         for j in range(len(k_blocks)):
             k_block=k_blocks[j]
             v_block=v_blocks[j]
@@ -59,6 +60,8 @@ class FlashAttention(nn.Module):
 
 if __name__ == "__main__":
     attn=FlashAttention(embed_dim=1024,block_size=4)
+    for param in attn.parameters():
+        param.requires_grad=False
     x=torch.randn(1024,1024)
     flash_atten=attn(x,enable_flash=True)   
     normal_atten=attn(x,enable_flash=False)
