@@ -10,6 +10,7 @@ class FlashAttention(nn.Module):
         self.v_proj = nn.Linear(embed_dim, embed_dim)
         self.bc=block_size
         self.br=min(block_size,embed_dim)
+        self.scale=(embed_dim**-0.5)
         
     def forward(self, x:torch.Tensor, enable_flash: bool=False) -> torch.Tensor:
         q = self.q_proj(x)
@@ -25,7 +26,7 @@ class FlashAttention(nn.Module):
         
         
     def normal_attn(self, q:torch.Tensor, k:torch.Tensor, v:torch.Tensor) -> torch.Tensor:
-        s=torch.matmul(q,k.transpose(0,1))
+        s=torch.matmul(q,k.transpose(0,1))*self.scale
         softmaxed=torch.nn.functional.softmax(s,dim=1)
         return torch.matmul(softmaxed,v)
     
@@ -45,7 +46,7 @@ class FlashAttention(nn.Module):
                 o_block=o_blocks[i]
                 l_i=l_blocks[i]
                 m_i=m_blocks[i]
-                s=torch.matmul(q_block,k_block.transpose(0,1))
+                s=torch.matmul(q_block,k_block.transpose(-2,-1))*self.scale
                 m_ij,_=torch.max(s,dim=1,keepdim=True)
                 p_ij=torch.exp(s-m_ij)
                 l_ij=torch.sum(p_ij,dim=1)
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     attn=FlashAttention(embed_dim=1024,block_size=4)
     for param in attn.parameters():
         param.requires_grad=False
-    x=torch.randn(1024,1024)
+    x=torch.randn(128,1024)
     flash_atten=attn(x,enable_flash=True)   
     normal_atten=attn(x,enable_flash=False)
     print("*"*50+"flash_atten"+"*"*50)
